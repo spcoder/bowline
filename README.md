@@ -6,7 +6,7 @@ a simple web microframework for node and stuff.
 
 ## installation
 
-  npm install bowline --save
+  $ npm install bowline --save
 
 
 ## highlights
@@ -22,23 +22,17 @@ a simple web microframework for node and stuff.
 
 with [node](http://nodejs.org/) installed, create a directory for your application
 
-```shell
-$ mkdir myapp
-```
+  $ mkdir myapp
 
 next, create a controllers folder
 
-```shell
-$ mkdir myapp/controllers
-```
+  $ mkdir myapp/controllers
 
 also, create the following view folders
 
-```shell
-$ mkdir myapp/views
-$ mkdir myapp/views/layouts
-$ mkdir myapp/views/root
-```
+  $ mkdir myapp/views
+  $ mkdir myapp/views/layouts
+  $ mkdir myapp/views/root
 
 ### create a controller with an action
 
@@ -93,9 +87,7 @@ $ mkdir myapp/views/root
 
 ### start your application
 
-  ```shell
   $ node app.js
-  ```
 
 ### see your page!
 
