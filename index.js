@@ -11,6 +11,13 @@ exports.templateFunction = function(fn) {
 };
 
 exports.startServer = function(port, callback) {
+  var app = http.createServer();
+  app.on('listening', callback);
+  app.on('request', router.route(cluster, app));
+  app.listen(port);
+};
+
+exports.startCluster = function(port) {
   router.discover(function() {
     if (cluster.isMaster) {
       for (var i = 0; i < numCPUs; i++) {
@@ -34,7 +41,7 @@ exports.startServer = function(port, callback) {
       });
     } else {
       var app = http.createServer();
-      app.on('request', router.route(cluster, app));
+      app.on('request', router.clusterRoute(cluster, app));
       app.listen(port);
     }
   });

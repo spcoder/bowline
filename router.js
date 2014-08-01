@@ -37,32 +37,49 @@ exports.discover = function(callback) {
   });
 };
 
-exports.route = function(cluster, app) {
-  return function(req, res) {
-    var d = domain.create();
-    d.add(req);
-    d.add(res);
-    d.on('error', function(err) {
-      console.error(err.message);
-      console.error(err.stack);
-      app.close();
-      cluster.worker.disconnect();
-      serveInternalServerError(req, res, err);
-    });
-    d.run(function() {
-      parser(req).on(STATIC, function(filepath) {
-        serveStatic(req, res, filepath);
-      }).on(DYNAMIC, function(pathname, action) {
-        serveDynamic(req, res, pathname, action);
-      }).on(NOT_FOUND, function() {
-        serveNotFound(req, res);
-      }).on(INVALID_METHOD, function() {
-        serveBadRequest(req, res);
-      }).on(ERROR, function(err) {
-        serveInternalServerError(req, res, err);
-      });
-    });
+var requestHandler = function(req, res) {
+  parser(req).on(STATIC, function(filepath) {
+    serveStatic(req, res, filepath);
+  }).on(DYNAMIC, function(pathname, action) {
+    serveDynamic(req, res, pathname, action);
+  }).on(NOT_FOUND, function() {
+    serveNotFound(req, res);
+  }).on(INVALID_METHOD, function() {
+    serveBadRequest(req, res);
+  }).on(ERROR, function(err) {
+    serveInternalServerError(req, res, err);
+  });
+};
+
+var errorHandler = function(req, res) {
+  return function(err) {
+    console.error(err.message);
+    console.error(err.stack);
+    serveInternalServerError(req, res, err);
   };
+};
+
+var clusterErrorHandler = function(req, res, cluster, app) {
+  return function(err) {
+    errorHandler(req, res)(err);
+    app.close();
+    cluster.worker.disconnect();
+  };
+};
+
+exports.route = function(req, res, errorFn) {
+  var errorFn = errorFn || errorHandler(req, res);
+  var d = domain.create();
+  d.add(req);
+  d.add(res);
+  d.on('error', errorFn);
+  d.run(function() {
+    requestHandler(req, res);
+  });
+};
+
+exports.clusterRoute = function(cluster, app) {
+  return route(req, res, clusterErrorHandler(req, res, cluster, app));
 };
 
 var parser = function(req) {

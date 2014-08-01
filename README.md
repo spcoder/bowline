@@ -100,8 +100,8 @@ also, create the following view folders
   * easy dynamic routing (controller/action)
   * auto-detect controllers and actions
   * support for multiple view systems (packaged with [swig](http://paularmstrong.github.io/swig/))
-  * TODO: great logging
-  * TODO: sessions
+  * TODO: logs that roll
+  * TODO: sessions (with expiration)
   * TODO: support for middleware
   * TODO: support for multiple css preprocessors
   * TODO: custom 4xx & 5xx views
