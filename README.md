@@ -6,6 +6,8 @@ a simple web microframework for node and stuff.
 
 ## installation
 
+  **this module isn't available at [npm](http://npmjs.org) yet.**
+
     $ npm install bowline --save
 
 
