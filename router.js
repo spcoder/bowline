@@ -4,16 +4,21 @@ var fs = require('fs');
 var domain = require('domain');
 var url = require('url');
 var EventEmitter = require('events').EventEmitter;
+var uuid = require('node-uuid');
 var settings = require('./settings');
+var logger = settings.logger;
 var Action = require('./action').Action;
 
 var JSEXT = '.js';
 var STATIC = 'static';
 var DYNAMIC = 'dynamic';
-var INVALID_METHOD = 'invalidMethod';
+var BAD_REQUEST = 'badRequest';
 var NOT_FOUND = 'notFound';
 var ERROR = 'error';
 var STATUS_SUCCESS = 200;
+var STATUS_ERROR = 500;
+var STATUS_NOT_FOUND = 404;
+var STATUS_BAD_REQUEST = 400;
 
 var _routes = {};
 
@@ -23,8 +28,11 @@ exports.discover = function(callback) {
     var ext = path.extname(file);
     if (ext === JSEXT) {
       var controllerName = path.basename(file, JSEXT);
+      logger.trace('Controller found: %s', controllerName);
+      logger.trace('  Actions:');
       var controller = require(file);
       for (var actionName in controller) {
+        logger.trace('  - %s', actionName);
         _routes[controllerName + '/' + actionName] = controller[actionName]; 
       }
     }  
@@ -38,13 +46,14 @@ exports.discover = function(callback) {
 };
 
 var requestHandler = function(req, res) {
+  logRequest(req, res);
   parser(req).on(STATIC, function(filepath) {
     serveStatic(req, res, filepath);
   }).on(DYNAMIC, function(pathname, action) {
     serveDynamic(req, res, pathname, action);
   }).on(NOT_FOUND, function() {
     serveNotFound(req, res);
-  }).on(INVALID_METHOD, function() {
+  }).on(BAD_REQUEST, function() {
     serveBadRequest(req, res);
   }).on(ERROR, function(err) {
     serveInternalServerError(req, res, err);
@@ -53,33 +62,49 @@ var requestHandler = function(req, res) {
 
 var errorHandler = function(req, res) {
   return function(err) {
-    console.error(err.message);
-    console.error(err.stack);
     serveInternalServerError(req, res, err);
   };
 };
 
-var clusterErrorHandler = function(req, res, cluster, app) {
-  return function(err) {
-    errorHandler(req, res)(err);
-    app.close();
-    cluster.worker.disconnect();
+var clusterErrorHandler = function(cluster, app) {
+  return function(req, res) {
+    return function(err) {
+      errorHandler(req, res)(err);
+      app.close();
+      cluster.worker.disconnect();
+    };
   };
 };
 
-exports.route = function(req, res, errorFn) {
-  var errorFn = errorFn || errorHandler(req, res);
-  var d = domain.create();
-  d.add(req);
-  d.add(res);
-  d.on('error', errorFn);
-  d.run(function() {
-    requestHandler(req, res);
-  });
+var addTracker = function(req) {
+  req['tracker'] = uuid.v4();
+};
+
+var addTimestamp = function(req) {
+  req['timestamp'] = new Date();
+}
+
+var extendRequest = function(req) {
+  addTracker(req);
+  addTimestamp(req);
+};
+
+exports.route = function(errorFn) {
+  var errorFn = errorFn || errorHandler;
+  return function(req, res) {
+    extendRequest(req);
+    var d = domain.create();
+    d.add(req);
+    d.add(res);
+    d.on('error', errorFn(req, res));
+    d.run(function() {
+      requestHandler(req, res);
+    });
+  }
 };
 
 exports.clusterRoute = function(cluster, app) {
-  return route(req, res, clusterErrorHandler(req, res, cluster, app));
+  return route(clusterErrorHandler(cluster, app));
 };
 
 var parser = function(req) {
@@ -105,12 +130,13 @@ var isStatic = function(uri, emitter) {
 var isDynamic = function(uri, method, emitter) {
   var pathname = uri.pathname === '/' ? 'root/index' : uri.pathname;
   var actionDef = _routes[pathname];
+
   if (actionDef) {
     var action = actionDef[method.toLowerCase()];
     if (action) {
       emitter.emit(DYNAMIC, pathname, action);
     } else {
-      emitter.emit(INVALID_METHOD);
+      emitter.emit(BAD_REQUEST);
     }
   } else {
     emitter.emit(NOT_FOUND)
@@ -120,20 +146,49 @@ var isDynamic = function(uri, method, emitter) {
 var serveStatic = function(req, res, filepath) {
   res.writeHead(STATUS_SUCCESS, { 'Content-Type': mime.lookup(filepath) });
   fs.createReadStream(filepath).pipe(res);
+  logResponse(req, res);
 };
 
 var serveDynamic = function(req, res, pathname, fn) {
-  fn.call(new Action(req, res, pathname));
+  var action = new Action(req, res, pathname);
+  action.on('end', function() {
+    logResponse(req, res);
+  });
+  fn.apply(action, action.params);
 };
 
 var serveInternalServerError = function(req, res, err) {
-  res.writeHead(500, { 'Content-Type': 'text/plain' });
+  res.writeHead(STATUS_ERROR, { 'Content-Type': 'text/plain' });
   res.write('Internal Server Error\n');
   res.end();
+  logResponse(req, res, err);
 };
 
 var serveNotFound = function(req, res) {
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.writeHead(STATUS_NOT_FOUND, { 'Content-Type': 'text/plain' });
   res.write('Not found\n');
   res.end();
+  logResponse(req, res);
+};
+
+var serveBadRequest = function(req, res) {
+  res.writeHead(STATUS_BAD_REQUEST, { 'Content-Type': 'text/plain' });
+  res.write('Bad Request\n');
+  res.end();
+  logResponse(req, res);
+};
+
+var logRequest = function(req, res) {
+  logger.info('[REQ] %s - %s', req.method.toUpperCase(), req.url, { tracker: req.tracker });
+};
+
+var logResponse = function(req, res, err) {
+  var elapsedMs = new Date().getTime() - req.timestamp;
+  var args = ['[RES] %d - took %d ms', res.statusCode, elapsedMs];
+  if (err) {
+    args[0] = args[0] + '\n  %s';
+    args.push(err.stack);
+  }
+  args.push({ tracker: req.tracker });
+  logger.info.apply(this, args);
 };
