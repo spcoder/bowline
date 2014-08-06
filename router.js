@@ -28,11 +28,11 @@ exports.discover = function(callback) {
     var ext = path.extname(file);
     if (ext === JSEXT) {
       var controllerName = path.basename(file, JSEXT);
-      logger.trace('Controller found: %s', controllerName);
-      logger.trace('  Actions:');
+      logger.silly('Controller found: %s', controllerName);
+      logger.silly('  Actions:');
       var controller = require(file);
       for (var actionName in controller) {
-        logger.trace('  - %s', actionName);
+        logger.silly('  - %s', actionName);
         _routes[controllerName + '/' + actionName] = controller[actionName]; 
       }
     }  
@@ -46,7 +46,7 @@ exports.discover = function(callback) {
 };
 
 var requestHandler = function(req, res) {
-  logRequest(req, res);
+  logger.logRequest(req, res);
   parser(req).on(STATIC, function(filepath) {
     serveStatic(req, res, filepath);
   }).on(DYNAMIC, function(pathname, action) {
@@ -62,6 +62,7 @@ var requestHandler = function(req, res) {
 
 var errorHandler = function(req, res) {
   return function(err) {
+    console.error(err.stack);
     serveInternalServerError(req, res, err);
   };
 };
@@ -146,13 +147,13 @@ var isDynamic = function(uri, method, emitter) {
 var serveStatic = function(req, res, filepath) {
   res.writeHead(STATUS_SUCCESS, { 'Content-Type': mime.lookup(filepath) });
   fs.createReadStream(filepath).pipe(res);
-  logResponse(req, res);
+  logger.logResponse(req, res);
 };
 
 var serveDynamic = function(req, res, pathname, fn) {
   var action = new Action(req, res, pathname);
   action.on('end', function() {
-    logResponse(req, res);
+    logger.logResponse(req, res);
   });
   fn.apply(action, action.params);
 };
@@ -161,34 +162,19 @@ var serveInternalServerError = function(req, res, err) {
   res.writeHead(STATUS_ERROR, { 'Content-Type': 'text/plain' });
   res.write('Internal Server Error\n');
   res.end();
-  logResponse(req, res, err);
+  logger.logResponse(req, res, err);
 };
 
 var serveNotFound = function(req, res) {
   res.writeHead(STATUS_NOT_FOUND, { 'Content-Type': 'text/plain' });
   res.write('Not found\n');
   res.end();
-  logResponse(req, res);
+  logger.logResponse(req, res);
 };
 
 var serveBadRequest = function(req, res) {
   res.writeHead(STATUS_BAD_REQUEST, { 'Content-Type': 'text/plain' });
   res.write('Bad Request\n');
   res.end();
-  logResponse(req, res);
-};
-
-var logRequest = function(req, res) {
-  logger.info('[REQ] %s - %s', req.method.toUpperCase(), req.url, { tracker: req.tracker });
-};
-
-var logResponse = function(req, res, err) {
-  var elapsedMs = new Date().getTime() - req.timestamp;
-  var args = ['[RES] %d - took %d ms', res.statusCode, elapsedMs];
-  if (err) {
-    args[0] = args[0] + '\n  %s';
-    args.push(err.stack);
-  }
-  args.push({ tracker: req.tracker });
-  logger.info.apply(this, args);
+  logger.logResponse(req, res);
 };

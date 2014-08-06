@@ -1,8 +1,12 @@
 var path = require('path');
 var consolidate = require('consolidate');
-var logger = require('./logger');
+var StandardLogger = require('./logger').StandardLogger;
 
 var environment = process.env.NODE_ENV || 'development';
+var logLevel = 'info';
+if (environment === 'development' || environment === 'test') {
+  logLevel = 'debug';
+}
 
 module.exports = {
   environment: environment,
@@ -10,5 +14,5 @@ module.exports = {
   controllerDir: path.join(process.cwd(), 'controllers'),
   viewDir: path.join(process.cwd(), 'views'),
   templateFn: consolidate.swig,
-  logger: new logger.StandardLogger(environment)
+  logger: new StandardLogger(logLevel, environment + '.log')
 };
