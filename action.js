@@ -29,18 +29,24 @@ util.inherits(Action, events.EventEmitter);
 Action.prototype.render = function(filepath, locals, statusCode, headers) {
   var self = this;
   var res = this.res;
-  var filepath = path.join(settings.viewDir, filepath);
+  var fullfile = path.join(settings.viewDir, filepath);
   var locals = locals || {};
   var statusCode = statusCode || 200;
   var headers = merge({ 'Content-Type': 'text/html' }, ( headers || {} ));
-  settings.templateFn(filepath, locals, function(err, html) {
+  settings.templateFn(fullfile, locals, function(err, html) {
     if (err) {
       throw err;
     } else {
       res.writeHead(statusCode, headers);
       res.write(html);
       res.end();
+      self.logRender(filepath, headers);
       self.emit('end');
     }
   });
+};
+
+Action.prototype.logRender = function(filepath, headers) {
+  this.debug('View   : %s', filepath);
+  this.silly('Headers: %s', util.inspect(headers));
 };
