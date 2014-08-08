@@ -16,95 +16,8 @@ a simple web microframework for node and stuff.
   * no routes
   * urls are mapped by `controller/action(/params)`
   * bring your own templating system or use [swig](http://paularmstrong.github.io/swig/) by default
+  * logs with request tracking that automatically roll each day
 
-
-## getting started
-
-### setup
-
-with [node](http://nodejs.org/) installed, create a directory for your application
-
-    $ mkdir myapp
-
-next, create a controllers folder
-
-    $ mkdir myapp/controllers
-
-also, create the following view folders
-
-    $ mkdir myapp/views
-    $ mkdir myapp/views/layouts
-    $ mkdir myapp/views/root
-
-### create a controller with an action
-
-  when a request is made to the root of your application (`/`) it will be directed to a controller
-  named root at `myapp/controllers/root.js`. create this file with the following contents.
-
-  ```js
-  exports.index = {
-    get: function() {
-      this.render('root/index.html', { msg: 'Hello World!' });
-    }
-  };
-  ```
-
-### create a base layout
-
-  you'll want to create an html layout so you don't need to write header and footer code for every view.
-  create a base layout at `myapp/views/layouts/layout.html` with the following contents.
-
-  ```html
-  <!doctype html>
-  <html lang="en">
-    <head>
-      <title>MyApp</title>
-    </head>
-    <body>
-      {% block content %}{% endblock %}
-    </body>
-  </html>
-  ```
-
-### create the view
-
-  the action above requests to render a file at `myapp/views/root/index.html`. 
-  create this file with the following contents.
-
-  ```html
-  {% extends '../layouts/layout.html' %}
-  {% block content %}
-  <h1>{{ msg }}</h1>
-  {% endblock %}
-  ``` 
-
-### create the server (app.js)
-
-  the whole application starts with a file at `myapp/app.js`. 
-  below is an example that couldn't be much easier.
-
-  ```js
-  require('bowline').startServer(4000);
-  ```
-
-### start your application
-
-    $ node app.js
-
-### see your page!
-
-  navigate to `http://localhost:4000/` and enjoy!
-
-## features
-
-  * easy dynamic routing (controller/action)
-  * auto-detect controllers and actions
-  * support for multiple view systems (packaged with [swig](http://paularmstrong.github.io/swig/))
-  * TODO: logs that roll
-  * TODO: sessions (with expiration)
-  * TODO: support for middleware
-  * TODO: support for multiple css preprocessors
-  * TODO: custom 4xx & 5xx views
 
 ##  api
 
@@ -119,9 +32,11 @@ also, create the following view folders
   specify a function that will be used to render templates. the signature `fn(path, locals, callback)` is used.
   this is friendly for engines used with [consolidate](https://github.com/visionmedia/consolidate.js/).
 
-## testing
+### logger([logger])
 
-  none yet
+  if no arguments are provided then this function will return the current logger object. otherwise, it will
+  replace the current logger with the one provided in the arguments.
+
 
 ## why another web framework?
 

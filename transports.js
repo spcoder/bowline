@@ -2,50 +2,35 @@ var winston = require('winston');
 var util = require('util');
 var colors = require('colors');
 
-var Console = exports.Console = function(options) {
+var ConsoleLight = exports.ConsoleLight = function(options) {
   this.name = 'console';
-  this.suppressTracker = options.suppressTracker || true;
 };
 
-util.inherits(Console, winston.Transport);
+util.inherits(ConsoleLight, winston.Transport);
 
-Console.prototype.levelColors = {
-  silly: 'magenta',
-  debug: 'green',
-  verbose: 'cyan',
-  info: 'grey',
-  warn: 'yellow',
-  error: 'red'
-};
-
-Console.prototype.log = function (level, msg, meta, callback) {
+ConsoleLight.prototype.log = function (level, msg, meta, callback) {
   var output;
-  var color = this.levelColors[level];
 
   if (msg) {
     output = util.format('%s', msg);
   } else if (meta.hasOwnProperty('type')) {
-    if (meta.type === 'REQ') {
-      if (this.suppressTracker) {
-        output = util.format('\n-----------------------------\n%s %s', meta.method.toUpperCase(), meta.url);
-      } else {
-        output = util.format('\n-----------------------------\n%s %s | %s', meta.method.toUpperCase(), meta.url, meta.tracker);
-      }
-    } else if (meta.type === 'RES') {
-      if (this.suppressTracker) {
-        output = util.format('Responded with %d in %dms', meta.statusCode, meta.duration);
-      } else {
-        output = util.format('Responded with %d in %dms | %s', meta.statusCode, meta.duration(), meta.tracker);
-      }
+    var hr = new Array(50).join('-');
+    switch(meta.type.toUpperCase()) {
+      case 'REQ':
+        output = util.format('\n%s\n%s %s', hr.grey, meta.method.grey, meta.url.grey);
+        break;
+      case 'RES':
+        output = util.format('%s %s', meta.statusCode.toString().green, (meta.duration.toString() + 'ms').grey);
+        break;
     }
   }
 
-  var color = this.levelColors[level];
-
-  if (level === 'error' || level === 'debug') {
-    process.stderr.write(output[color] + '\n');
-  } else {
-    process.stdout.write(output[color] + '\n');
+  if (output) {
+    if (level === 'error' || level === 'debug') {
+      process.stderr.write(output + '\n');
+    } else {
+      process.stdout.write(output + '\n');
+    }
   }
 
   this.emit('logged');

@@ -28,11 +28,8 @@ exports.discover = function(callback) {
     var ext = path.extname(file);
     if (ext === JSEXT) {
       var controllerName = path.basename(file, JSEXT);
-      logger.silly('Controller found: %s', controllerName);
-      logger.silly('  Actions:');
       var controller = require(file);
       for (var actionName in controller) {
-        logger.silly('  - %s', actionName);
         _routes[controllerName + '/' + actionName] = controller[actionName]; 
       }
     }  

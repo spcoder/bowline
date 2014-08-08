@@ -6,7 +6,7 @@ var StandardLogger = exports.StandardLogger = function(logLevel, filename) {
 
   this.__logger__ = new winston.Logger({
     transports: [
-      new transports.Console({ 
+      new transports.ConsoleLight({ 
         level: logLevel
       }),
       new winston.transports.DailyRotateFile({
@@ -30,12 +30,22 @@ StandardLogger.prototype.level = function(logLevel) {
 };
 
 StandardLogger.prototype.logRequest = function(req) {
-  var meta = { method: req.method.toUpperCase(), url: req.url, pid: process.pid, type: 'REQ', tracker: req.tracker };
+  var meta = { 
+    type: 'REQ', 
+    method: req.method.toUpperCase(), 
+    url: req.url, 
+    pid: process.pid, 
+    tracker: req.tracker 
+  };
   this.info(meta);
 };
 
 StandardLogger.prototype.logResponse = function(req, res, err) {
-  var ms = new Date().getTime() - req.timestamp;
-  var meta = { statusCode: res.statusCode, duration: ms, type: 'RES', tracker: req.tracker };
+  var meta = { 
+    type: 'RES',
+    tracker: req.tracker,
+    statusCode: res.statusCode, 
+    duration: (new Date().getTime() - req.timestamp), 
+  };
   this.info(meta);
 };

@@ -25,7 +25,7 @@ exports.startServer = function(port, callback) {
     } else {
       var app = http.createServer();
       app.on('listening', function() {
-        settings.logger.info('Listening on port %d', port);
+        settings.logger.info(('\nListening on port ' + port).grey);
         if (callback) callback();
       });
       app.on('request', router.route());
